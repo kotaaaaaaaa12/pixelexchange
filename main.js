@@ -37,6 +37,7 @@ processButton.onclick = function() {
         Array.from(inputA.files).forEach((file, index) => {
             const imageA = new Image();
             const imageAFile = URL.createObjectURL(file);
+            const fileNameA = file.name;
 
             imageA.onload = function() {
                 const imageACanvas = document.createElement('canvas');
@@ -57,12 +58,18 @@ processButton.onclick = function() {
                         const rA = imageAData.data[indexA];
                         const gA = imageAData.data[indexA + 1];
                         const bA = imageAData.data[indexA + 2];
+                        const aA = imageAData.data[indexA + 3];
+
+                        if (aA === 0) {
+                            continue;
+                        }
 
                         const adjustedBData = new Uint8ClampedArray(imageBData.data);
                         for (let i = 0; i < adjustedBData.length; i += 4) {
                             adjustedBData[i] = (adjustedBData[i] / 255) * rA;
                             adjustedBData[i + 1] = (adjustedBData[i + 1] / 255) * gA;
                             adjustedBData[i + 2] = (adjustedBData[i + 2] / 255) * bA;
+                            adjustedBData[i + 3] = aA;
                         }
 
                         const tempCanvas = document.createElement('canvas');
@@ -77,8 +84,8 @@ processButton.onclick = function() {
 
                 resultContainer.appendChild(resultCanvas);
                 resultCanvas.toBlob(function(blob) {
-                    zip.file(`image_${index + 1}.png`, blob);
-                    processedImages.push(`image_${index + 1}.png`);
+                    zip.file(fileNameA, blob);
+                    processedImages.push(fileNameA);
                     if (processedImages.length === inputA.files.length) {
                         downloadButton.classList.remove('hidden');
                     }
@@ -96,7 +103,8 @@ downloadButton.onclick = function() {
     
     resultCanvases.forEach((canvas, index) => {
         canvas.toBlob(function(blob) {
-            zip.file(`image_${index + 1}.png`, blob);
+            const fileName = processedImages[index];
+            zip.file(fileName, blob);
         });
     });
 
