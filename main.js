@@ -34,64 +34,68 @@ processButton.onclick = function() {
         imageBContext.drawImage(imageB, 0, 0, tileSize, tileSize);
         const imageBData = imageBContext.getImageData(0, 0, tileSize, tileSize);
 
-        Array.from(inputA.files).forEach((file, index) => {
-            const imageA = new Image();
-            const imageAFile = URL.createObjectURL(file);
-            const fileNameA = file.name;
+        const promises = Array.from(inputA.files).map((file, index) => {
+            return new Promise((resolve) => {
+                const imageA = new Image();
+                const imageAFile = URL.createObjectURL(file);
+                const fileNameA = file.name;
 
-            imageA.onload = function() {
-                const imageACanvas = document.createElement('canvas');
-                imageACanvas.width = gridSize * tileSize;
-                imageACanvas.height = gridSize * tileSize;
-                const imageAContext = imageACanvas.getContext('2d');
-                imageAContext.drawImage(imageA, 0, 0, gridSize, gridSize);
-                const imageAData = imageAContext.getImageData(0, 0, gridSize, gridSize);
+                imageA.onload = function() {
+                    const imageACanvas = document.createElement('canvas');
+                    imageACanvas.width = gridSize * tileSize;
+                    imageACanvas.height = gridSize * tileSize;
+                    const imageAContext = imageACanvas.getContext('2d');
+                    imageAContext.drawImage(imageA, 0, 0, gridSize, gridSize);
+                    const imageAData = imageAContext.getImageData(0, 0, gridSize, gridSize);
 
-                const resultCanvas = document.createElement('canvas');
-                resultCanvas.width = gridSize * tileSize;
-                resultCanvas.height = gridSize * tileSize;
-                const resultContext = resultCanvas.getContext('2d');
+                    const resultCanvas = document.createElement('canvas');
+                    resultCanvas.width = gridSize * tileSize;
+                    resultCanvas.height = gridSize * tileSize;
+                    const resultContext = resultCanvas.getContext('2d');
 
-                for (let y = 0; y < gridSize; y++) {
-                    for (let x = 0; x < gridSize; x++) {
-                        const indexA = (y * gridSize + x) * 4;
-                        const rA = imageAData.data[indexA];
-                        const gA = imageAData.data[indexA + 1];
-                        const bA = imageAData.data[indexA + 2];
-                        const aA = imageAData.data[indexA + 3];
+                    for (let y = 0; y < gridSize; y++) {
+                        for (let x = 0; x < gridSize; x++) {
+                            const indexA = (y * gridSize + x) * 4;
+                            const rA = imageAData.data[indexA];
+                            const gA = imageAData.data[indexA + 1];
+                            const bA = imageAData.data[indexA + 2];
+                            const aA = imageAData.data[indexA + 3];
 
-                        if (aA === 0) {
-                            continue;
+                            if (aA === 0) {
+                                continue;
+                            }
+
+                            const adjustedBData = new Uint8ClampedArray(imageBData.data);
+                            for (let i = 0; i < adjustedBData.length; i += 4) {
+                                adjustedBData[i] = (adjustedBData[i] / 255) * rA;
+                                adjustedBData[i + 1] = (adjustedBData[i + 1] / 255) * gA;
+                                adjustedBData[i + 2] = (adjustedBData[i + 2] / 255) * bA;
+                                adjustedBData[i + 3] = aA;
+                            }
+
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = tileSize;
+                            tempCanvas.height = tileSize;
+                            const tempContext = tempCanvas.getContext('2d');
+                            const adjustedImageData = new ImageData(adjustedBData, tileSize, tileSize);
+                            tempContext.putImageData(adjustedImageData, 0, 0);
+                            resultContext.drawImage(tempCanvas, x * tileSize, y * tileSize, tileSize, tileSize);
                         }
-
-                        const adjustedBData = new Uint8ClampedArray(imageBData.data);
-                        for (let i = 0; i < adjustedBData.length; i += 4) {
-                            adjustedBData[i] = (adjustedBData[i] / 255) * rA;
-                            adjustedBData[i + 1] = (adjustedBData[i + 1] / 255) * gA;
-                            adjustedBData[i + 2] = (adjustedBData[i + 2] / 255) * bA;
-                            adjustedBData[i + 3] = aA;
-                        }
-
-                        const tempCanvas = document.createElement('canvas');
-                        tempCanvas.width = tileSize;
-                        tempCanvas.height = tileSize;
-                        const tempContext = tempCanvas.getContext('2d');
-                        const adjustedImageData = new ImageData(adjustedBData, tileSize, tileSize);
-                        tempContext.putImageData(adjustedImageData, 0, 0);
-                        resultContext.drawImage(tempCanvas, x * tileSize, y * tileSize, tileSize, tileSize);
                     }
-                }
 
-                resultContainer.appendChild(resultCanvas);
-                resultCanvas.toBlob(function(blob) {
-                    zip.file(fileNameA, blob);
-                    processedImages.push(fileNameA);
-                    if (processedImages.length === inputA.files.length) {
-                        downloadButton.classList.remove('hidden');
-                    }
-                });
-            };
-            imageA.src = imageAFile;
+                    resultContainer.appendChild(resultCanvas);
+                    resultCanvas.toBlob(function(blob) {
+                        zip.file(fileNameA, blob);
+                        processedImages.push(fileNameA);
+                        resolve();
+                    });
+                };
+                imageA.src = imageAFile;
+            });
+        });
+
+        Promise.all(promises).then(() => {
+            downloadButton.classList.remove('hidden');
         });
     };
     imageB.src = imageBFile;
