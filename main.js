@@ -2,7 +2,7 @@ const inputA = document.getElementById('inputA');
 const inputB = document.getElementById('inputB');
 const processButton = document.getElementById('processButton');
 const downloadButton = document.getElementById('downloadButton');
-const canvas = document.getElementById('canvas');
+const resultContainer = document.getElementById('resultContainer');
 let processedImages = [];
 
 inputA.classList.remove('hidden');
@@ -18,13 +18,10 @@ processButton.onclick = function() {
     processButton.classList.add('hidden');
     inputA.classList.add('hidden');
     inputB.classList.add('hidden');
-    
+
     const zip = new JSZip();
-    const context = canvas.getContext('2d');
     const tileSize = 8;
     const gridSize = 16;
-    canvas.width = gridSize * tileSize;
-    canvas.height = gridSize * tileSize;
 
     const imageB = new Image();
     const imageBFile = URL.createObjectURL(inputB.files[0]);
@@ -40,14 +37,19 @@ processButton.onclick = function() {
         Array.from(inputA.files).forEach((file, index) => {
             const imageA = new Image();
             const imageAFile = URL.createObjectURL(file);
-            
+
             imageA.onload = function() {
                 const imageACanvas = document.createElement('canvas');
-                imageACanvas.width = gridSize;
-                imageACanvas.height = gridSize;
+                imageACanvas.width = gridSize * tileSize;
+                imageACanvas.height = gridSize * tileSize;
                 const imageAContext = imageACanvas.getContext('2d');
                 imageAContext.drawImage(imageA, 0, 0, gridSize, gridSize);
                 const imageAData = imageAContext.getImageData(0, 0, gridSize, gridSize);
+
+                const resultCanvas = document.createElement('canvas');
+                resultCanvas.width = gridSize * tileSize;
+                resultCanvas.height = gridSize * tileSize;
+                const resultContext = resultCanvas.getContext('2d');
 
                 for (let y = 0; y < gridSize; y++) {
                     for (let x = 0; x < gridSize; x++) {
@@ -69,11 +71,12 @@ processButton.onclick = function() {
                         const tempContext = tempCanvas.getContext('2d');
                         const adjustedImageData = new ImageData(adjustedBData, tileSize, tileSize);
                         tempContext.putImageData(adjustedImageData, 0, 0);
-                        context.drawImage(tempCanvas, x * tileSize, y * tileSize, tileSize, tileSize);
+                        resultContext.drawImage(tempCanvas, x * tileSize, y * tileSize, tileSize, tileSize);
                     }
                 }
 
-                canvas.toBlob(function(blob) {
+                resultContainer.appendChild(resultCanvas);
+                resultCanvas.toBlob(function(blob) {
                     zip.file(`image_${index + 1}.png`, blob);
                     processedImages.push(`image_${index + 1}.png`);
                     if (processedImages.length === inputA.files.length) {
@@ -89,9 +92,14 @@ processButton.onclick = function() {
 
 downloadButton.onclick = function() {
     const zip = new JSZip();
-    processedImages.forEach(function(image) {
-        zip.file(image, canvas.toDataURL('image/png').split(',')[1], {base64: true});
+    const resultCanvases = document.querySelectorAll('#resultContainer canvas');
+    
+    resultCanvases.forEach((canvas, index) => {
+        canvas.toBlob(function(blob) {
+            zip.file(`image_${index + 1}.png`, blob);
+        });
     });
+
     zip.generateAsync({ type: 'blob' }).then(function(content) {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(content);
